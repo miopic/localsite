@@ -1,0 +1,119 @@
+.calendar
+  {
+     font-size: small;
+     width:100%;
+  }
+  .left-border
+  {
+    border-left:1px solid black;
+  }
+  div.forCalendar
+  {
+    margin-left:0px;
+  }
+  div.number
+  {
+    float:left;
+    text-align: left;
+    color:white;
+    clear:both;
+    background-color: #b2b2b2;
+    margin-bottom:2px;
+    margin-right:0px;
+    padding-top:2px;
+    padding-left:4px;
+    padding-bottom:4px;
+    width:100%;
+    font-size: 12px;
+    font-weight: 400;
+
+  }
+  div.offnumber
+  {
+    float:left;
+    text-align: left;
+    color:#b2b2b2;
+    clear:both;
+    background-color: lightyellow;
+    margin-bottom:2px;
+    margin-right:0px;
+    padding-top:2px;
+    padding-left:4px;
+    padding-bottom:4px;
+    width:100%;
+    font-size: 12px;
+    font-weight: 400;
+
+  }
+  a.off:link, a.off:visited
+  {
+    text-decoration:none;
+    color:#b2b2b2;
+  }
+  a.on:link, a.on:visited
+  {
+    text-decoration:none;
+    color:white;
+  }
+  tr.monthTitle, th.day-name
+  {
+
+    text-align: center;
+    height:50px;
+    border-bottom:1px solid black;
+     border-top:1px solid black;
+     border-right:1px solid black;
+
+  }
+  tr.monthTitle
+  {
+      background-color: #dcdcdc;
+      background-color: #FFB81C
+  }
+
+
+  th.day-name
+  {
+    background-color: #666;
+    color:white;
+    width:<?=$colWidth?>;
+  }
+  tr.week
+  {
+    border-bottom:1px solid black;
+  }
+  td.day
+  {
+
+    border-right: 1px solid black;
+
+    margin-right:0px;
+    padding:0px 0px 0px 0px;
+    height:130px;
+    width:14%;
+  }
+  div.today
+  {
+    background-color: #21759b;
+  }
+  div.event
+  {
+    padding-left:4px;
+    padding-top:2x;
+    padding-bottom:3px;
+    padding-right:4px;
+    margin-top:4px;
+    margin-bottom:2px;
+    margin-left:2px;
+    margin-right:3px;
+    background-color: #cceddf;
+    background-color: #ffffff;
+    clear:both;
+    border-radius: 3px;
+
+  }
+.activity-link
+  {
+    color: darkgrey;
+    text-decoration: none;
+  }
