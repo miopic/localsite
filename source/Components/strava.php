@@ -16,7 +16,7 @@ class stravaComponent
   var $tokenType = null;
   var $myStravaID = '5583256';
   var $userModel = 'User';
-  var $callBackDomain = 'dmarks.net';
+  var $callBackDomain = 'localhost';
   var $callCount = 0;
   var $refreshToken = null;
   var $expiresAt = null;
@@ -132,7 +132,7 @@ class stravaComponent
 
     $this->errorMessage = null;
     $scope = is_null($scope) ? 'read_all' : $scope;
-   $this->oAuthRequest = 'https://www.strava.com/oauth/authorize?client_id=5532&redirect_uri=https://'.$this->callBackDomain.'/rule10/activities/strava_callback&scope='.$obj.$scope;
+   $this->oAuthRequest = 'https://www.strava.com/oauth/authorize?client_id=5532&redirect_uri=https://'.$this->callBackDomain.'/app/activities/strava_callback&scope='.$obj.$scope;
     $temp = '';
     //debug($this->oAuthRequest);
     return $this->oAuthRequest;
@@ -500,7 +500,6 @@ class stravaComponent
   {
      $this->post = array('page'=>$this->page, 'per_page'=>$this->perPage, 'after'=>$this->after);
     $temp = $this->curlStrava('athlete/activities?page='.$this->page.'&per_page='.$this->perPage.'&after='.$this->after);
-  
     if ($temp)
     {
       foreach($temp as $i=>$values)
@@ -644,6 +643,11 @@ class stravaComponent
     }
     return false;
   }
+  public function getKudosCount($strava_id = null)
+  {
+      $kudosCount = $this->getKudos($strava_id);
+      return count($kudosCount);
+  }
   public function getKudos($strava_id = null)
   {
     //id refers to the id of the activity associated with the kudos
@@ -651,10 +655,10 @@ class stravaComponent
     {
       //https://www.strava.com/api/v3/athletes/:id
       $tempJson = $this->curlStrava('activities/'.$strava_id.'/kudos');
-
+      $record = array();
       if (!$tempJson)
       {
-        return false;
+        return $record;
       } else
       {
         $record = array();
@@ -779,11 +783,13 @@ class stravaComponent
     $previous = array(0,0);
     if (!is_null($string))
     {
+     
       while ($i < strlen($string))
       {
         $shift = $result = 0x00;
         do {
-            $bit = ord(substr($string, $i++)) - 63;
+            //$bit = ord(substr($string, $i++)) - 63;
+            $bit = ord($string[$i++]) - 63;
             $result |= ($bit & 0x1f) << $shift;
             $shift += 5;
         } while ($bit >= 0x20);

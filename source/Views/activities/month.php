@@ -37,11 +37,17 @@ if (count($records) > 0)
 <!-- Tabs -->
 <div class="row" >
 	<nav>
-  	<div class="nav nav-tabs" id="nav-tab" role="tablist"  style="padding-left:0px; margin-left:0px; margin-bottom:30px">
-	  	<button class="nav-link active" id="nav-overview-tab" data-bs-toggle="tab" data-bs-target="#nav-overview" type="button" role="tab" aria-controls="nav-overview" aria-selected="true"><?=$overviewTabLabel?></button>
-			<?=(count($records) > 0) ? '<button class="nav-link " id="nav-calendar-tab" data-bs-toggle="tab" data-bs-target="#nav-calendar" type="button" role="tab" aria-controls="nav-calendar" aria-selected="true">Calendar</button>' : ''?>
-			<button class="nav-link" id="nav-records-tab" data-bs-toggle="tab" data-bs-target="#nav-records" type="button" role="tab" aria-controls="nav-records" aria-selected="true">Records</button>
-		</div>
+  	<div class="nav nav-tabs " id="nav-tab" role="tablist"  style="padding-left:0px; margin-left:0px; margin-bottom:30px">
+	  	
+	  	<button class="nav-link active" id="nav-overview-tab" data-bs-toggle="tab" data-bs-target="#nav-overview" type="button" role="tab" aria-controls="nav-overview" aria-selected="true" onclick="days();"><?=$overviewTabLabel?></button>
+		
+		<button class="nav-link  " id="nav-calendar-tab" data-bs-toggle="tab" data-bs-target="#nav-calendar" type="button" role="tab" aria-controls="nav-calendar" aria-selected="true">Calendar
+	  	</button>
+
+		<button class="nav-link" id="nav-records-tab" data-bs-toggle="tab" data-bs-target="#nav-records" type="button" role="tab" aria-controls="nav-records" aria-selected="true">
+			Records
+		</button>
+	</div>
 	</nav>
 </div>
 
@@ -49,7 +55,9 @@ if (count($records) > 0)
 <div class="tab-content" id="nav-tabContent">
 
 	<!-- Overview Tab Content -->
-	<div class="tab-pane fade show active" id="nav-overview" role="tabpanel" aria-labelledby="nav-overview-tab" tabindex="0">
+	
+	
+	<div class="tab-pane fade show active" id="nav-overview" role="tabpanel" aria-labelledby="nav-overview-tab" tabindex="0" >
 
 		<?php
 		if (count($records) > 0)
@@ -85,26 +93,21 @@ if (count($records) > 0)
 	</div>
 
 	<!-- Calendar Tab Content -->
-	<?php
-	if (count($records) > 0)
-	{
-	?>
-		<div class="tab-pane fade show" id="nav-calendar" role="tabpanel" aria-labelledby="nav-calendar-tab" tabindex="1">
-			<div class="row" id="">
-				<?=$this->element('calendar');?>
-			</div>
+	<div class="tab-pane fade show " id="nav-calendar" role="tabpanel" aria-labelledby="nav-calendar-tab" tabindex="1">
+		<div class="row" id="">
+			<?=$this->element('calendar');?>
 		</div>
-	<?php
-	}
-	?>
+	</div>
+		
 
 
-	<div class="tab-pane fade show" id="nav-records" role="tabpanel" aria-labelledby="nav-records-tab" tabindex="3">
+	<div class="tab-pane fade show" id="nav-records" role="tabpanel" aria-labelledby="nav-records-tab" tabindex="2">
 		<?php
 		krsort($records);
 		$this->set('recordList', $records);
 		?>
 		<div class="row">
+
 			<?=$this->element('activitiesRecords')?>
 		</div>
 	</div>

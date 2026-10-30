@@ -40,7 +40,7 @@
 	define('DEFAULT_DECIMALS', 2);
 	define('DEFAULT_IMAGE_DIR', '/img/');
 	define('DEFAULT_LAYOUT', 'default');
-	define('DEFAULT_METRIC', 'distance');
+	define('DEFAULT_METRIC', 'moving_time');
 	define('DEFAULT_TEMPLATE', 'bootstrap');
 	define('DEFAULT_TMZ','US/Pacific');
 	define('DEFAULT_USER', 2);
@@ -75,6 +75,8 @@
 
 	define('METERS_PER_KILOMETER', 1000);
 	define('METERS_PER_YARD', 0.9144);
+	define('METERS_PER_FOOT', 0.3048);
+	
 	define('METERS_PER_MILE', 1609.34);
 	define('FEET_PER_METER', 3.28084);
 	define('UNITS_METRIC', 1);

@@ -3,8 +3,34 @@
 class activitiesModel extends ModelClass
 {
 	const SQL_DAY = "DATE_FORMAT(start_date_local,'%Y-%m-%d') as day ";
-	const SUM_FIELDS = 	'sum(total_elevation_gain) as total_elevation_gain, sum(total_elevation_gain_feet) as total_elevation_gain_feet, sum(moving_time) as moving_time,sum(elapsed_time) as elapsed_time, sum(distance) as distance,sum(miles) as miles, sum(kilometers) as kilometers, sum(yards) as yards, count(*) as count, sum(calories) as calories';
-	
+	const SUM_FIELDS = 	"
+  	`activities`.`activitytype_id` AS `activitytype_id`,
+		SUM(`activities`.`moving_time`) AS `moving_time`,
+		SUM(`activities`.`elapsed_time`) AS `elapsed_time`,
+		SUM(`activities`.`distance`) AS `distance`,
+		SUM(`activities`.`kilometers`) AS `kilometers`,
+		SUM(`activities`.`miles`) AS `miles`,
+		SUM(`activities`.`yards`) AS `yards`,
+		(CASE
+		    WHEN (SUM(`activities`.`moving_time`) <> 0) THEN (SUM(`activities`.`miles`) / (SUM(`activities`.`moving_time`) / 3600))
+		    ELSE 0
+		END) AS `mph`,
+		(CASE
+		    WHEN
+		        ((`activities`.`activitytype_id` = 'Swim')
+		            AND (SUM(`activities`.`yards`) <> 0))
+		    THEN
+		        (SUM(`activities`.`moving_time`) / (SUM(`activities`.`yards`) / 100))
+		    WHEN (SUM(`activities`.`miles`) <> 0) THEN (SUM(`activities`.`moving_time`) / SUM(`activities`.`miles`))
+		    ELSE 0
+		END) AS `pace`,
+    SUM(`activities`.`total_elevation_gain`) AS `total_elevation_gain`,
+    SUM(`activities`.`total_elevation_gain_feet`) AS `total_elevation_gain_feet`,
+    COUNT(0) AS `count`,
+    SUM(`activities`.`calories`) AS `calories`,
+    AVG(`activities`.`average_heartrate`) AS `average_heartrate`,
+    (SUM((`activities`.`moving_time` * `activities`.`average_heartrate`)) / SUM(`activities`.`moving_time`)) AS `weighted_average__heartrate`";
+
 
 
 	var $UPDATE_FIELDS = array( "id", "activity_id", "user_id", "athlete_id","activitytype_id", "api", "start_date", "start_date_local", " name", "distance", "distance_source", "moving_time", "elapsed_time", "total_elevation_gain", "total_elevation_loss", "start_elevation", "end_elevation",  "workout_type", "timezone", "utc_offset", "location_city", "location_state", "location_country",   "comment_count", "athlete_count",  "map_id", "polyline", "summary_polyline", "trainer", "commute",  "start_lat", "start_lng", "end_lat", "end_lng", "start_addr", "end_addr", "average_speed", "max_speed", "average_temp", "average_watts", "kilojoules", "device_watts", "has_heartrate", "average_heartrate", "max_heartrate", "elev_high", "elev_low", "upload_id", "external_id", "pr_count", "total_photo_count",  "description", "calories", "perceived_exertion", "device_name", "embed_token", "streamAltitude", "streamDistance", "streamHeart", "streamTime", "streamTemp", "streamVeloc", "created", "modified");
@@ -103,20 +129,46 @@ class activitiesModel extends ModelClass
 			$this->model = 'activities';
 			return $results;
 		}
-		public function monthsByType($fromDate = null, $toDate = null, $typeID = null)
+		public function timeframeByType($timeframe = NULL, $fromDate = null, $toDate = null, $typeID = null)
 		{
-			$this->model = 'monthsbytype';
-			$monthFrom = date('Y-m-01', strtotime($fromDate));
-			$monthTo = date('Y-m-01', strtotime($toDate));
-			$conditions = "month >= '".$monthFrom."' AND month <= '".$monthTo."'";
-			$conditions .= !is_null($typeID) && ($typeID != 0)? " AND activitytype_id = "."'". $typeID. "'" : '';
+	
+			$fields = self::SUM_FIELDS;
+			
+			switch ($timeframe)
+			{
+				case 'month':
+					$fields = "DATE_FORMAT(`activities`.`start_date_local`,
+                '%Y-%m-01') AS `month`, ".$fields;
+        	$group = "DATE_FORMAT(`activities`.`start_date_local`,'%Y-%m-01') , `activities`.`activitytype_id`";
+         	$order = "DATE_FORMAT(`activities`.`start_date_local`,'%Y-%m-01') , `activities`.`activitytype_id`";
+					
+					$conditions = "start_date_local >= '".$fromDate."' AND start_date_local < '".$toDate."'";
+					$conditions .= !is_null($typeID) && ($typeID != 0)? " AND activitytype_id = "."'". $typeID. "'" : '';
+				break;
+				case 'year':
+					$fields = "DATE_FORMAT(`activities`.`start_date_local`,
+                '%Y-01-01') AS `year`, ".$fields;
+        	$group = "DATE_FORMAT(`activities`.`start_date_local`,'%Y-01-01') , `activities`.`activitytype_id`";
+         	$order = "DATE_FORMAT(`activities`.`start_date_local`,'%Y-01-01') , `activities`.`activitytype_id`";
+							$conditions = "start_date_local >= '".$fromDate."' AND start_date_local < '".$toDate."'";
+					$conditions .= !is_null($typeID) && ($typeID != 0)? " AND activitytype_id = "."'". $typeID. "'" : '';
+
+				break;
+			}
+
+			$limit = 1000;
 			$results = parent::find(array(
-				'conditions'=>$conditions,
-				'limit' => 1000
+				'fields' => $fields,
+				'conditions' => $conditions,
+				'group'  => $group,
+				'order'  => $order,
+				'limit' => $limit
 			));
-			$this->model = 'activities';
+
 			return $results;
 		}
+
+		
 		public function yearsByType($fromYear, $toYear,  $typeID = null)
 		{
 				$this->model = 'yearsbytype';

@@ -15,6 +15,7 @@
 	{
 		$selectMetric = $this->element('select');
 	}
+
 ?>
 
 <form method="POST" action="<?=$actionStr?>" class="form-inline border-bottom pb-3" style="float:right;padding-left:5px; padding-right:5px; width:100%">
@@ -65,7 +66,15 @@
 			</table>
 		</div>
 		<div class="col-9">
-			&nbsp;
+			<?php
+				if ($this->action == "year")
+				{
+					echo '<h1 class="text-end">'.date('Y',strtotime($fromDate))."</h1>";
+				} elseif ($this->action == "month")
+				{
+					echo '<h1 class="text-end">'.date('F \'y',strtotime($fromDate))."</h1>";
+				}
+			?>
 		</div>
 	</div>
 </form>

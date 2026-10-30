@@ -22,7 +22,8 @@ if (count($totalsList) > 0)
         $grandTotals['count'] += isset($totals['count']) ? $totals['count'] : 0;
         $grandTotals['moving_time'] += $totals['moving_time'];
         $grandTotals['miles'] += $totals['miles'];
-        $grandTotals['total_elevation_gain'] += $totals['total_elevation_gain'];
+
+        $grandTotals['total_elevation_gain'] += $this->units == UNITS_METRIC ? $totals['total_elevation_gain'] : $totals['total_elevation_gain_feet'] ;
         $grandTotals['calories'] += $totals['calories'];
     	}
       $grandTotals['mph'] = $grandTotals['miles'] / ($grandTotals['moving_time'] / HOUR);
@@ -66,11 +67,25 @@ if (count($totalsList) > 0)
       </thead>
       <tbody>
         <?php
+
         foreach ($totalsList as $id=>$details)
         {
-        $distance = number_format($details['miles'],$distanceDecimals);
-          $details['total_elevation_gain'] = is_null($details['total_elevation_gain']) || ($details['total_elevation_gain'] == '') || ($details['total_elevation_gain'] == 0)
+            if (($details['activitytype_id'] != SWIMMING ) || 
+                (($details['activitytype_id'] == SWIMMING ) && ($details['miles'] >= 100 )))
+            {
+                $distance = number_format($details['miles'],$distanceDecimals);
+            } else
+            {
+                $distance = number_format($details['yards'],0);
+            }
+          if ($this->units == UNITS_METRIC) 
+          {       
+            $details['total_elevation_gain'] = is_null($details['total_elevation_gain']) || ($details['total_elevation_gain'] == '') || ($details['total_elevation_gain'] == 0)
             ? 0 : $details['total_elevation_gain'];
+          } else {
+            $details['total_elevation_gain'] = is_null($details['total_elevation_gain_feet']) || ($details['total_elevation_gain_feet'] == '') || ($details['total_elevation_gain_feet'] == 0)
+            ? 0 : $details['total_elevation_gain_feet'];
+          }
         ?>
           <tr style="font-weight:normal; border-bottom:1px solid black; border-top:1px solid black">
             <?php
@@ -83,6 +98,9 @@ if (count($totalsList) > 0)
                 break;
                 case "month":
                   $details[$dateField] = date("Y-M",strtotime($details[$dateField]));
+                break;
+                case 'week':
+                    $details[$dateField] = date(YMD,strtotime($details[$dateField]));
                 break;
                 default:
                 break;

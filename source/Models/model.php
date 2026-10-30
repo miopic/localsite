@@ -129,7 +129,7 @@ class ModelClass
         case 'kilometers':
         case 'total_elevation_gain_feet':
         case 'total_elevation_loss_feet':
-        case 'rest_time';
+        case 'rest_time':
           break;
         
         default:
@@ -334,6 +334,7 @@ class ModelClass
     //unset any fields not in the model;
     foreach ($data as $key=>$value)
     {
+      //echo $key. " = ".$value ."\n";
       if (in_array($key, $this->modelFields))
       {
 
@@ -378,6 +379,7 @@ class ModelClass
       $options['nolimit'] = 1;
       $c = $this->find($options);
 
+  
       if ($c)
       {
         foreach ($c as $i=>$data)
@@ -393,6 +395,7 @@ class ModelClass
   public function find($options = array(), $format = null)
   {
     $this->setSelect($options);
+
     $rs = array();
     if ($this->SQL != '')
     {
@@ -437,6 +440,9 @@ class ModelClass
        $i++;
 
     }
+    $trace = debug_backtrace();
+
+    
     return $rs;
   }
   public function delete($id = null)
@@ -472,7 +478,7 @@ class ModelClass
     }
     exit;
   }
-  public function getByID($id = null)
+  public function getByID($id = null, $opts = null)
   {
     
     if (($id > 0) || ($id != ''))
@@ -483,6 +489,10 @@ class ModelClass
         'conditions' => $this->model.'.'.$this->idField.' = '. $id,
         'limit' => 1
       );
+      if (isset($opts['fields']))
+      {
+        $options['fields'] = $opts['fields'];
+      }
       $temp = $this->find($options);    
       if (isset($temp[0]))
       {

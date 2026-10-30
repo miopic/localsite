@@ -1,6 +1,6 @@
 	
 			<?php  
-					if ($record['activity_id'] == SWIMMING)
+					if ($record['activitytype_id'] == SWIMMING)
 					{
 						if ($this->units == UNITS_METRIC)
 						{
@@ -34,7 +34,7 @@
 
 				<div class="mb-2">
 	  				<label for="activitytype_id class="form-label">City/Town</label>
-				    <input type="text" class="form-control" id="type" name="start_date_local" value="<?=$record['start_locality']?>" type="datetime-local">
+				    <input type="text" class="form-control" id="type" name="start_locality" value="<?=$record['start_locality']?>" type="datetime-local">
 				</div>
 				<div class="mb-2">
 	  				<label for="activitytype_id class="form-label">Date Time</label>
@@ -60,10 +60,11 @@
 				    <label for="distance" class="form-label" >Distance</label>
 				    <input type="text" class="form-control" id="distance" name="distance" value="<?=$distance?>">  
 				</div>
+				<!--
 				<div class="mb-2">
 				    <label for="calories" class="form-label" >total_elevation_gain</label>
 				     <input type="text" class="form-control" id="total_elevation_gain" name="total_elevation_gain" value="<?=$record['total_elevation_gain']?>">  
-				</div>
+				</div>-->
 				<div class="mb-2">
 				    <label for="calories" class="form-label" >calories</label>
 				     <input type="text" class="form-control" id="calories" name="calories" value="<?=$calories?>">  

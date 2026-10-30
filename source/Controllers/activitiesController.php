@@ -2,7 +2,6 @@
 require_once('Controller.php');
 class activitiesController extends Controller
 {
-	
 	const DEFAULT_FROM_DATE = '1988-01-01';
 	const DEFAULT_TO_DATE = '2100-01-01';
 	const DEFAULT_TIMEFRAME = 'month';
@@ -10,8 +9,6 @@ class activitiesController extends Controller
 	const DEFAULT_METRIC = DEFAULT_METRIC;
 	const RECENT_RECORDS = 6;
 	const LOG_LOOKBACK = 19;   //for the logbook action this sets the number of weeks from which to retrieve database
-
-
 	var $action = null;
 	var $app = null;
 	var $html = null;
@@ -19,13 +16,17 @@ class activitiesController extends Controller
 	var $statusTotals = array();
 	var $typesFoundInRecords = null;
 	var $colors = null;
-  var $otherModels = array('activitytypes', 'users');
+    var $otherModels = array('activitytypes', 'users');
 	var $helpers = array( 'html', 'stopwatch');
-  var $components = array('strava', 'geocode', 'time');
-  //var $allow = array('year', 'month', 'logbook','view', 'fetch');
+    var $components = array('strava', 'geocode', 'time');
 	var $types;
-	var $metrics = array('distance' => 'Distance', 'moving_time' => 'Duration', 'total_elevation_gain_feet' => 'Ascent', 'calories' => 'Calories', 'weighted_average__heartrate'=>'Avg Heart Rate');
-
+	var $metrics = array(
+        'distance' => 'Distance', 
+        'moving_time' => 'Duration', 
+        'total_elevation_gain_feet' => 'Ascent', 
+        'calories' => 'Calories', 
+        'weighted_average__heartrate'=>'Avg Heart Rate'
+    );
 	var $metric = self::DEFAULT_METRIC;
 	var $typeID = self::DEFAULT_FILTER_TYPE_ID;
 	var $fromDate = null;
@@ -34,137 +35,123 @@ class activitiesController extends Controller
 	var $currentDate = null;
 	var $textSearch = null;
 	var $user = null;
-
-	var $goals = array( 
-		2024 => array(
-			'units' => DEFAULT_UNITS,
-			SWIMMING => 260000,
-			WALKING => 366,
-			CYCLING => 7500
-		));
-
-
+	
 	public function __construct($controllerName, $controllerAction)
 	{
 		global $DEFAULT_LOCATION;
-    parent::__construct($controllerName, $controllerAction);
+        parent::__construct($controllerName, $controllerAction);
 		$x = debug_backtrace();
 		$this->user = $this->users->getByID(2);
-
-
 		$this->types = $this->activitytypes->find();
+        $typeList = array();
+        foreach($this->types as $key=>$data)
+        {
+          $typeList[$key] = $data['activitytype_id'];
+        }
+    		$typeList[0] = 'All';
+    		ksort($typeList);
 
-    $typeList = array();
-    foreach($this->types as $key=>$data)
-    {
-      $typeList[$key] = $data['activitytype_id'];
+        $this->strava->activityModel = 'activities';
+        $this->set('elements', $typeList);
+    	$this->set('metrics', $this->metrics);
+    	$this->set('types', $this->types);
     }
-		$typeList[0] = 'All';
-		ksort($typeList);
-
-    $this->strava->activityModel = 'activities';
-    $this->set('elements', $typeList);
-		$this->set('metrics', $this->metrics);
-		$this->set('types', $this->types);
-	}
 	
 	public function getActivityNameByID($id = 1)
 	{
 		$found = false;
 		return $this->types[$id]['name'];
 	}
+
 	public function beforeAction()
 	{
 		parent::beforeAction();
     
-    //$this->strava->Gear = $this->activities->gears;
-    $this->strava->userModel = 'user';
-    if (!is_null($this->user))
-    {
-	    $this->strava->refreshToken = $this->user['refresh_token'];
-	    $this->strava->accessToken = $this->user['access_token'];
-	    $this->strava->expiresAt = $this->user['expires_at'];
-
-			 
-      $timeRemaining = $this->strava->timeRemaining($this->user['expires_at']);
-      if (($timeRemaining < HOUR) && !is_null($this->user))
-      {
-				$rtoken = $this->strava->refreshAccessToken($this->user);
-       	if ($rtoken)
+        $this->strava->userModel = 'user';
+        if (!is_null($this->user))
         {
-          if ($this->users->update($this->user))
+    	    $this->strava->refreshToken = $this->user['refresh_token'];
+    	    $this->strava->accessToken = $this->user['access_token'];
+    	    $this->strava->expiresAt = $this->user['expires_at'];
+			 
+            $timeRemaining = $this->strava->timeRemaining($this->user['expires_at']);
+            if (($timeRemaining < HOUR) && !is_null($this->user))
+            {
+				$rtoken = $this->strava->refreshAccessToken($this->user);
+       	        if ($rtoken)
+                {
+                    if ($this->users->update($this->user))
 					{
 						//echo '<h1>APP: token updated</h1>';
 					} else {
 						echo '<h1>ERROR: token NOT updated</h1>';
 
 					}
-        } else
-        {
-          $this->app->pushAlert("Unable to retrieve a Strava token");
-          return false;
+                } else
+                {
+                $this->app->pushAlert("Unable to retrieve a Strava token");
+                return false;
+                }
+
+                $this->app->pushAlert('Token refreshed');
+                $this->set('expiresAt', date('Y-m-d H:i',$this->user['expires_at']));
+                $timeRemaining = ($this->user['expires_at'] - time())/HOUR;
+                $this->set('timeRemaining', date('Y-m-d H:i',$this->user['expires_at']));
+            } else
+            {
+      	         // token did not need refreshing
+            }
         }
-
-      $this->app->pushAlert('Token refreshed');
-      $this->set('expiresAt', date('Y-m-d H:i',$this->user['expires_at']));
-      $timeRemaining = ($this->user['expires_at'] - time())/HOUR;
-      $this->set('timeRemaining', date('Y-m-d H:i',$this->user['expires_at']));
-      } else
-      {
-      	// token did not need refreshing
-      }
-    }
 			
-				$fromY = date('Y');
-				$toY = date('Y', strtotime($fromY." +1 year"));
-				$this->statusTotals['year']  =  $this->activities->yearsByType( $fromY, $toY , null);
-				foreach($this->statusTotals['year'] as $key=>$data)
-				{
-					
-						$dist =  round(($data['miles'] ),0);
-					
-					switch ($data['activitytype_id'])
-					{
-						case CYCLING:
-							$img = $this->html->image(LOCATION_TYPEIMAGES.IMG_CYCLING, array('height'=>20, 'width'=>20));
-							$this->status[STATPOSITION_CYCLING] =  $img."&nbsp;" . number_format($dist);
-						break;
-						case SWIMMING:
-							$img = $this->html->image(LOCATION_TYPEIMAGES.IMG_SWIMMING, array('height'=>20, 'width'=>20));
-							$this->status[STATPOSITION_SWIMMING] = $img."&nbsp;".number_format($dist);
-						break;
-						case WALKING:
-						  $img = $this->html->image(LOCATION_TYPEIMAGES.IMG_WALKING, array('height'=>20, 'width'=>20))."&nbsp;";
-							$this->status[STATPOSITION_WALKING] = $img ."&nbsp;".number_format($dist);
-						break;
-						case SKIING:
-						$img = $this->html->image(LOCATION_TYPEIMAGES.IMG_SKIING, array('height'=>20, 'width'=>20))."&nbsp;";
+		$fromY = date('Y');
+		$toY = date('Y', strtotime($fromY." +1 year"));
+		$this->statusTotals['year']  =  $this->activities->yearsByType( $fromY, $toY , null);
+		foreach($this->statusTotals['year'] as $key=>$data)
+		{
+			
+				$dist =  round(($data['miles'] ),0);
+			
+			switch ($data['activitytype_id'])
+			{
+				case CYCLING:
+					$img = $this->html->image(LOCATION_TYPEIMAGES.IMG_CYCLING, array('height'=>20, 'width'=>20));
+					$this->status[STATPOSITION_CYCLING] =  $img."&nbsp;" . number_format($dist);
+				break;
+				case SWIMMING:
+					$img = $this->html->image(LOCATION_TYPEIMAGES.IMG_SWIMMING, array('height'=>20, 'width'=>20));
+					$this->status[STATPOSITION_SWIMMING] = $img."&nbsp;".number_format($dist);
+				break;
+				case WALKING:
+				  $img = $this->html->image(LOCATION_TYPEIMAGES.IMG_WALKING, array('height'=>20, 'width'=>20))."&nbsp;";
+					$this->status[STATPOSITION_WALKING] = $img ."&nbsp;".number_format($dist);
+				break;
+				case SKIING:
+				$img = $this->html->image(LOCATION_TYPEIMAGES.IMG_SKIING, array('height'=>20, 'width'=>20))."&nbsp;";
 
-							$this->status[STATPOSITION_SKIING] .= $img.'&nbsp;'.number_format($dist);
-						break;
-					}
-				}
-				if ($this->request == POST)
-		    {
-					$this->textSearch = isset($this->data['textSearch']) ? $this->data['textSearch'] : null;
-					$this->fromDate = isset($this->data['fromDate']) ? $this->data['fromDate'] : null;
-					$this->toDate = isset($this->data['toDate']) ? $this->data['toDate'] : null;
-					$this->currentDate = isset($this->data['currentDate']) ? $this->data['currentDate'] : null;
+					$this->status[STATPOSITION_SKIING] .= $img.'&nbsp;'.number_format($dist);
+				break;
+			}
+		}
+		if ($this->request == POST)
+		{
+			$this->textSearch = isset($this->data['textSearch']) ? $this->data['textSearch'] : null;
+			$this->fromDate = isset($this->data['fromDate']) ? $this->data['fromDate'] : null;
+			$this->toDate = isset($this->data['toDate']) ? $this->data['toDate'] : null;
+			$this->currentDate = isset($this->data['currentDate']) ? $this->data['currentDate'] : null;
 
-					$this->typeID = !isset($this->data['typeID']) || ($this->data['typeID'] == 0) ? null : $this->data['typeID'];
-					$this->timeframe = (isset($this->data['timeframe']) and !(is_null($this->data['timeframe']))) ? $this->data['timeframe'] : self::DEFAULT_TIMEFRAME;
-					$this->metric = (isset($this->data['metric']) and !(is_null($this->data['metric']))) ? $this->data['metric'] :  self::DEFAULT_METRIC ;
-				} else {
-					
-				}
+			$this->typeID = !isset($this->data['typeID']) || ($this->data['typeID'] == 0) ? null : $this->data['typeID'];
+			$this->timeframe = (isset($this->data['timeframe']) and !(is_null($this->data['timeframe']))) ? $this->data['timeframe'] : self::DEFAULT_TIMEFRAME;
+			$this->metric = (isset($this->data['metric']) and !(is_null($this->data['metric']))) ? $this->data['metric'] :  self::DEFAULT_METRIC ;
+        } else 
+        {
+							
+        }
 	}
 	public function afterAction()
 	{
 
 	}
-	
-	
-
+	//formatted begin below
 
 	public function fetch()
 	{
@@ -179,6 +166,7 @@ class activitiesController extends Controller
 		//sets the date in strava after which I want to retrieve strava activities
 
 		$this->strava->after = strtotime($lastActivity['start_date_local']);
+
 		$defaultTimeZone = date_default_timezone_get();
 		$whereTimezoneStarts = strpos($lastActivity['timezone'], ' '); 
 
@@ -255,100 +243,137 @@ class activitiesController extends Controller
 		}
 	}
 
+	public function bulkkudos($fromDate, $toDate)
+	{
+		$options = array(
+			'fields' => "id, kudos, activity_id, start_date_local",
+			'conditions' => 'kudos = 0 and start_date_local >= "'.$fromDate.'" AND start_date_local <= "'.$toDate.'"',
+			'limit' => 1000
+
+		);
+        //echo $options['conditions'].'<br>';
+		$stravaCalls = 0;
+		$records = $this->activities->find($options);
+		$results = array();
+		//debug($records);
+		foreach ($records as $i => $record)
+		{
+			$lastKudo = $record['kudos'];
+			$results[$i]['strava_id'] = $record['activity_id'];
+			$results[$i]['lastkudo'] = 	$lastKudo;
+			$results[$i]['newkudo'] = $lastKudo;
+			$results[$i]['message'] = '<tr><td>'.$record['id'].'</td><td><a href="https://www.strava.com/activities/'.$record['activity_id'].'">'.$record['activity_id']."</a></td><td>".$record['start_date_local']."</td>";
+		  if ($record['activity_id'] != "")
+		  {
+		  	$c = $this->strava->getKudosCount($record['activity_id']);
+          	$stravaCalls += 1;
+		  	if (($c != 0)  && ($c != "0"))
+		  	{		
+			  			$record['kudos'] = $c;
+			  			if (($c != $lastKudo)  && ($c > 0))
+			  			{
+				  			if ($this->activities->update($record))
+				  			{
+				  				 $results[$i]['message'] .= "<td>".$record['kudos']."</td><td>". $lastKudo."</td></tr>";
+							} else 
+                            {
+							}
+
+						} else {
+		                  
+							$results[$i]['message'] .= "<td>". $record['kudos']."</td><td> EQUALS ". $lastKudo."</td></tr>";
+						}
+    		  } else {
+    		  	$results[$i]['message'] .= "<td>Strava Kudos = 0</td></tr>";
+    		  }  
+    			
+		  } else {
+		  	$results[$i]['lastkudo'] = 	0;
+				$results[$i]['newkudo'] = 0;
+				$results[$i]['message'] .= "<td>&nbsp;</td><td>no stravaID</td></tr>";
+		  }
+			
+		}
+
+		$this->set('fromDate', $fromDate);
+		$this->set('toDate', $toDate);
+		$this->set('records', $records);
+		$this->set('results', $results);
+		$this->set("calls", $stravaCalls);
+		
+	}
+
 	public function view($id = null)
 	{
-
-
 		$aMonthAgoForStrava = strtotime("-1 year");
 		$fromDateForStrava = strtotime("2019-05-01");
 		$somethingHasChanged = false;
 		//If no id was passed find the most recent activity
 		if ($this->request == POST)
 		{
-			$gotoDate = $this->data['gotoDate']." 0:00";
-
-			
+			$gotoDate = $this->data['gotoDate'];			
 			$options = array('limit'=>1, 'conditions'=> "start_date_local > ". "'".$gotoDate."'", 'order'=>'activities.id ASC');
 		} elseif (!is_null($id) && ($id != ''))
 		{
-			$options = array('fields'=>'*','conditions'=>"activities.id = ".$id." OR activities.activity_id = '".$id."'", 'limit'=>1, 'order'=>'activities.id DESC');
-    } else
-    {
+			$record = $this->activities->getByID($id);
+
+        } else
+        {
+
 			$options = array( 'limit'=>1, 'order'=>'activities.id DESC');
-    }
-		$record =$this->activities->find($options);
-
-    if (!isset($record[0]))
-		{
-			echo '<h1>Record not found: '.get_class($this).'</h1>';
-			exit;
-		} else {
-      $record = $record[0];
-      $id = $record['id'];
-      $this->set('record', $record);
-    }
-		$points = $this->strava->decode($record['polyline']);
-		$this->set('points', $points);
-    //find the record that is prior to this one in time
-		$previous =$this->activities->find(array('conditions'=>'activities.start_date_local < "'.$record['start_date_local'].'"', 'limit'=>1, 'order'=>'activities.start_date_local DESC'));
-		$this->set('previous',array_pop($previous));
-    //find the record that is after this one in time
-		$next =$this->activities->find(array('conditions'=>'activities.start_date_local > "'.$record['start_date_local'].'"', 'limit'=>1, 'order'=>'activities.start_date_local ASC'));
-		$this->set('next', array_pop($next));
-    $last = $this->activities->find(array('limit'=>1, 'order'=>'activities.start_date_local desc'));
-		$this->set('last',array_pop($last));
-    $first = $this->activities->find(array('limit'=>1, 'order'=>'activities.start_date_local asc'));
-		$this->set('first',array_pop($first));
-
-		/*
-    //Get the strava activity associated with this record, to see if any data has changed.
-		//But only if the activity is newer than a month or earlier than $fromDateForStrava "blackout window for Strava requests"
-		if($this->auth->loggedIn())
-		{
-			$currentRecordTime = strtotime($record['start_date_local']);
-			$changes = array();
-			$changes['id'] = $record['id'];
-    		$stravaActivity = isset($record['activity_id']) ? $this->strava->activity($record['activity_id']) : null;
-
-			if (!$stravaActivity   )
-	 		{
-				$message = json_decode($this->strava->lastJSON);
-				$this->set('statusMessage','<span style="color:red;font-weight: bold;magin-left:40px;">'.'Strava Message: '. $message->message.'</span>');
-
+			$record =$this->activities->find($options);
+			if (count($record) > 0)
+			{ 
+				$record = $record[0];
+			}
+        }
+    	$lastKudoCount = isset($record['kudos']) ? $record['kudos'] : null;
+        $kudosCount = 0;
+    	if (isset($record['activity_id']))
+    	{
+			$kudos = $this->strava->getKudos($record['activity_id']);
+			$kudosCount = $kudos ? count($kudos) : 0;
+			if (($kudosCount != 0) && ($kudosCount != $lastKudoCount))
+			{
+				$temp = array (
+				'id' => $record['id'],
+				'kudos' => $kudosCount
+				);
+				if ($this->activities->update($temp))
+				{
+					echo "<h5>Record ".$temp['id']." Kudos updated to ".$kudosCount." from ".$lastKudoCount.".</h5>";
+				}
 			} else
 			{
-
-					$stravaActivity = $stravaActivity['activities'];
-				//$stravaEfforts = isset($stravaActivity['activities']['segment_efforts']) ? $stravaActivity['activities']['segment_efforts'] : array();
-				//Workaround for a weirdness
-				if (!isset($record['polyline']))
-				{
-					$record['polyline'] = "";
-				}
-
-
+			        // echo "<h5>Strava Kudos = 0</h5>";	
 			}
-			
-		    if ($somethingHasChanged)
-		    {
-		    	unset($record['day']);
-		    	unset($record['week']);
-		    	unset($record['month']);
-		    	unset($record['year']);
-		        $result = $this->activities->update($record);
-		        if ($result)
-		        {
-		          $this->set('statusMessage','Record: '. $record['id']. ' has been successfully updated!');
-		        } else
-		        {
-		          $this->set('statusMessage','Record: '. $record['id']. ' was NOT successfully updated!');
-		          $this->app->clearAlerts();
-		          $this->app->pushAlert($this->activities->SQL);
-		          $this->app->pushAlert($this->activities->error);
-		        }
-		      }
-		
-		} */
+
+		}
+		$this->set('kudosCount', $kudosCount);
+        if (isset($record[0]))
+    		{
+    			echo '<h1>Record not found: '.get_class($this).'</h1>';
+    			exit;
+    		} else {
+          $id = $record['id'];
+          $this->set('record', $record);
+          $this->set('week', $this->getWeek($record['start_date_local']));
+          
+          
+        }
+		$points = $this->strava->decode($record['polyline']);
+		$this->set('points', $points);
+        //find the record that is prior to this one in time
+		$previous =$this->activities->find(array('conditions'=>'activities.start_date_local < "'.$record['start_date_local'].'"', 'limit'=>1, 'order'=>'activities.start_date_local DESC'));
+		$this->set('previous',array_pop($previous));
+        //find the record that is after this one in time
+		$next =$this->activities->find(array('conditions'=>'activities.start_date_local > "'.$record['start_date_local'].'"', 'limit'=>1, 'order'=>'activities.start_date_local ASC'));
+		$this->set('next', array_pop($next));
+        $last = $this->activities->find(array('limit'=>1, 'order'=>'activities.start_date_local desc'));
+		$this->set('last',array_pop($last));
+        $first = $this->activities->find(array('limit'=>1, 'order'=>'activities.start_date_local asc'));
+		$this->set('first',array_pop($first));
+
 
 	}
 
@@ -359,10 +384,9 @@ class activitiesController extends Controller
     if ($this->request == POST)
     {
 
-    	$record = $this->activities->getByID($this->data['id']);
+    	$record = $this->activities->getByID($this->data['id'],array('fields'=>'id, start_date_local, activitytype_id, name, moving_time, elapsed_time, distance, yards, miles, total_elevation_gain, calories, start_locality, total_elevation_gain_feet'));
   
-
-    	//metric?
+     	//metric?
     	if ($this->units == UNITS_METRIC)
     	{
     		//if its metric and swimming than the distance is meters.  if its metric and anything else its kilometers and is converted to meters
@@ -370,20 +394,28 @@ class activitiesController extends Controller
     	} else 
     	//UNITS_STATUTE
     	{ 
-
+    
+    		if (is_null($this->data['total_elevation_gain']) || ($this->data['total_elevation_gain'] == ''))
+				{
+					$this->data['total_elevation_gain'] = 0;
+				} else //convert feet to meters
+				{
+					$this->data['total_elevation_gain'] = $this->data['total_elevation_gain']  * METERS_PER_FOOT;
+				}
+						
     		//if its statues and swimming than the distance is yards convert to meters.  if its statues and anything else its miles and is converted to meters
     		$this->data['distance'] = $this->data['activitytype_id'] == SWIMMING ? $this->data['distance'] * METERS_PER_YARD:  $this->data['distance']  * METERS_PER_MILE ;
-    			debug('statute '.	$this->data['distance'] );
-    			exit;
+    	
+    			
     	}
+    	
       $s = $this->activities->update( $this->data);
 
       $record = $this->activities->getByID($this->data['id']);
       if ($s)
       {
       	$this->redirect('/app/activities/view/'.$this->data['id']);
-      	//convert to meters as needed
-      	//check to see if distance changed
+
       } else
       {
         echo 'not updated<br>';
@@ -395,11 +427,11 @@ class activitiesController extends Controller
       	echo 'NO ID SPECIFIED FOR EDIT';exit;
     	} else 
     	{
-    		$record = $this->activities->getByID($id);
-
+    		$record = $this->activities->getByID($id, array('fields'=>'id, start_date_local, activitytype_id, name, moving_time, elapsed_time, distance, yards, miles, total_elevation_gain, calories, start_locality, total_elevation_gain_feet'));
     		
     	}
     }
+
     
     $this->set('record', $record);
     $this->set('id', $id);
@@ -415,11 +447,11 @@ class activitiesController extends Controller
 		 //exit;
       $this->redirect($authUrl);
   }
+    // strava_callback: is call back function from a request to authorize
+    //https://www.strava.com/oauth/authorize?client_id=5532&redirect_uri=https://multifork.com/activities/strava_callback&response_type=code&scope=activity:read_all
 
-	// strava_callback: is call back function from a request to authorize
-	//https://www.strava.com/oauth/authorize?client_id=5532&redirect_uri=https://multifork.com/activities/strava_callback&response_type=code&scope=activity:read_all
-	public function strava_callback()
-	{
+   public function strava_callback()
+   {
 		if (isset($_GET['error']) && ($_GET['error'] == 'access_denied'))
 		{
 		   return false;
@@ -445,18 +477,14 @@ class activitiesController extends Controller
 	}
 
 
-	
-
-
-  public function search($fromDate = null, $toDate = null, $typeID = null)
-  {
-		$conditions = "";
-		$searchTotals = null;
-		$activityTypeList[0] = 'All';
-		$selectedValue = 0;
-		if ($this->request == GET)
-		{
-
+    public function search($fromDate = null, $toDate = null, $typeID = null)
+    {
+	   $conditions = "";
+	   $searchTotals = null;
+	   $activityTypeList[0] = 'All';
+	   $selectedValue = 0;
+	   if ($this->request == GET)
+	   {
 			$this->fromDate = is_null($fromDate) || ($fromDate == "")? $this->time->getWeek(date(YMD)) : $fromDate;
 			$this->toDate = is_null($toDate) || ($toDate = "")? date(YMD, strtotime($fromDate." +1 week")) : $toDate;
 			$this->typesID  =  $typeID;
@@ -481,16 +509,16 @@ class activitiesController extends Controller
 
 		$this->set('count', $this->activities->count());
 		$this->set('conditions', $conditions);
-    $this->set('records', $records);
-    $this->set('textSearch', $this->textSearch);
-    $this->set('fromDate', $this->fromDate);
-    $this->set('toDate', $this->toDate);
-    $this->set('activityTypeList', $activityTypeList);
+        $this->set('records', $records);
+        $this->set('textSearch', $this->textSearch);
+        $this->set('fromDate', $this->fromDate);
+        $this->set('toDate', $this->toDate);
+        $this->set('activityTypeList', $activityTypeList);
 		$this->set('selectedValue', $selectedValue);
 		$this->set('searchTotals', $searchTotals);
 		$this->set('typeID', $this->typeID);
-		
   }
+
   public function day($date = null)
   {
   	if ($this->request == GET)
@@ -501,7 +529,6 @@ class activitiesController extends Controller
   	}
   	 $this->toDate = date("Y-m-d", strtotime($this->fromDate. " +1 day"));
 
-  	
   	$records = $this->activities->find(array('conditions'=>'start_date_local >= "'.$this->fromDate.'" AND start_date_local < "'.$this->toDate.'"'));
   	$dayTotalsByType  = $this->activities->daysByType($this->fromDate, $this->toDate,$this->typeID);
   	$this->set('dayTotalsByType', $dayTotalsByType);	
@@ -510,15 +537,15 @@ class activitiesController extends Controller
   	$this->set('typeID', null);
   	$this->set('metric', "distance");
   	$this->set('currentDate', $this->fromDate);
-		$this->set('increment', 'day');
-		$this->set('fromDate', $this->fromDate);
-		$this->set('toDate', $this->toDate);
+	$this->set('increment', 'day');
+	$this->set('fromDate', $this->fromDate);
+	$this->set('toDate', $this->toDate);
 
   }
 
-  public function logbook($date = null, $typeID = null, $metric = null)
+  public function logbook($date = null, $typeID = null, $metric = null, $weeksBack = 52)
   {
-  		$weeksBack = 52;
+  	
 		if ($this->request == GET)
 
 		{
@@ -592,28 +619,42 @@ class activitiesController extends Controller
 		$this->set('records', $records);
   }
 
-  public function week($currentDate = null)
-	{
+    public function week($currentDate = null)
+    {
 
-		if ($this->request == GET)
-		{
-			$currentDate = is_null($currentDate) || ($currentDate == "")? $this->time->getWeek(date(YMD." D")) : $this->time->getWeek($currentDate);
-			$this->fromDate = date(YMD." D",strtotime($currentDate));
-			$this->toDate = date(YMD." D",strtotime($this->fromDate." + 7 days"));
+    	if ($this->request == GET)
+    	{
+    		$currentDate = is_null($currentDate) || ($currentDate == "")? $this->time->getWeek(date(YMD." D")) : $this->time->getWeek($currentDate);
+    		$this->fromDate = date(YMD."",strtotime($currentDate));
+    		$this->toDate = date(YMD."",strtotime($this->fromDate." + 7 days"));
 
-		}
-		$date = array();
 
-		$i = $this->fromDate;
-		while (strtotime($i) < strtotime($this->toDate))
-		{
-			$dates[$i] = null;
-			$i = date(YMD." D", strtotime($i." +1 day"));
-		}
-		debug($dates);
-		$grandTotalDateFormat = "M d";
-		exit;
-	}
+    	}
+    	$date = array();
+
+    	$i = $this->fromDate;
+    	while (strtotime($i) < strtotime($this->toDate))
+    	{
+    		$dates[$i] = null;
+    		$i = date(YMD, strtotime($i." +1 day"));
+    	}
+    	
+    	$weekTotals = $this->activities->weekTotalsByType($this->fromDate, $this->toDate, $this->typeID);
+    	$this->set('currentDate', $currentDate);
+        $options = array(
+            'conditions' =>'start_date_local >= "'.$this->fromDate.'" AND start_date_local < "'.$this->toDate.'"', 
+        );
+        
+        $records = $this->activities->find($options);
+        $this->set('totalsList', $weekTotals);
+        $this->set('dates', $dates);
+        $this->set('records', $records);
+        $this->set('increment', '7 days');
+        $this->set('typeID', $this->typeID);
+        $this->set('metric', $this->metric);
+        $this->set('fromDate', $this->fromDate);
+        $this->set('toDate', $this->toDate);
+     }   
 
 
 
@@ -630,7 +671,7 @@ class activitiesController extends Controller
 		$dates = $this->time->month($this->fromDate);
 		$grandTotalDateFormat = "M 'y";
 		$this->toDate = date(YMD, strtotime($this->currentDate. " +1 day"));
-		$monthTotalsByType  = $this->activities->monthsByType($this->fromDate, $this->toDate,$this->typeID);
+		$monthTotalsByType  = $this->activities->timeframeByType('month', $this->fromDate, $this->toDate, $this->typeID);
 
 		$order = "DATE_FORMAT(start_date_local, '%Y-%m-%d'), activitytype_id ASC";
 		$options = array(
@@ -701,14 +742,16 @@ class activitiesController extends Controller
 	 //POST and GET Handling Moved to before action
 	 $this->timeframe = 'year';
 		$this->fromDate = date(YEAR, strtotime($this->currentDate));  //set the fromDate to the beginning of the year
+		$this->toDate = isset($this->currentDate) ? $this->currentDate : date(YMD);
+		
 		$dates = $this->time->year($this->fromDate);
 		$grandTotalDateFormat = "Y";
-		$fromYear = date('Y', strtotime($this->fromDate));
-		$toYear = $fromYear+1;
-		$yearToDateByType = $this->activities->yearsByType($fromYear, $toYear, $this->typeID);
+		
+			$yearToDateByType  = $this->activities->timeframeByType('year', $this->fromDate , $this->toDate, $this->typeID);
+
 
 		$this->toDate = date(YMD, strtotime($this->currentDate. " +1 day"));
-		$yearByMonth= $this->activities->monthsByType($this->fromDate, $this->toDate,$this->typeID);
+		$yearByMonth= $this->activities->timeframeByType('month',$this->fromDate, 	$this->toDate ,$this->typeID);
 		
 		$yearToDate = null;
 
@@ -1209,6 +1252,41 @@ class activitiesController extends Controller
 		} 
 		return false;
 	}
+	function tops($activitytype_id = 'Ride', $yearOrMonth = 'y', $limit = 3)
+	{
+		($activitytype_id);
+		//Year to date
+		if ($yearOrMonth == 'y')
+		{
+			$fromDate = date("Y-01-01");
+		
+		}elseif ($yearOrMonth == 'a')
+		{
+				$fromDate = "1970-01-01";
+		}
+		$toDate = date("Y-m-d",strtotime(date( "y-m-d")." +1 day"));
+		$fields = "id, start_date_local, start_locality, activitytype_id, name, moving_time, distance, miles, yards, total_elevation_gain_feet, calories, max_heartrate, average_heartrate, mph, pace";
+		//Furthest
+		$conditions = 'start_date_local >= "'.$fromDate . '" AND start_date_local < "'. $toDate.'" AND activitytype_id = "'.$activitytype_id.'"';
+		$order = "distance DESC";
 
+		$options = array (
+			'fields' =>$fields,
+			'conditions' => $conditions,
+			'order' => $order,
+			'limit' => $limit
+
+		);
+		$farthest = $this->activities->find($options);
+
+		$order = "total_elevation_gain DESC";
+		$options['order'] = $order;
+
+		$mostelevation = $this->activities->find($options);
+
+		$this->set('farthest', $farthest);
+		$this->set('activitytype_id',$activitytype_id);
+		$this->set('mostlElevation', $mostelevation);
+	}
 }
 ?>

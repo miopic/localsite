@@ -4,7 +4,7 @@
   $previousDate = date(YMD, strtotime($currentDate.' - '.$increment));
   $dateFormat = isset($dateFormat) ? $dateFormat : YMD;
   $currentDate = date($dateFormat, strtotime($currentDate));
-  $link = isset($link) ? $link :  APP_NAME.'/activities/timeframes';
+  $link = isset($link) ? $link :  APP_NAME.'/activities/view';
   ?>
   <div class="btn-group" role="group" aria-label="Basic Example" >
 

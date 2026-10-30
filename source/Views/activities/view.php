@@ -16,7 +16,7 @@ if (isset($record))
 	}
 	
 	$pageTitle = date('Y-m-d, D	H:i', strtotime($record['start_date_local'])).'';
-
+    $pageTitle = isset($week) ? '<a href="/app/activities/week/'.$week.'" style="color:black;text-decoration:none">'.$pageTitle.'</a>' : $pageTitle;
 	//START: Navigation Links
 	$this->set('nextID',is_null($next) ? null : $next['id']);
 	$this->set('lastID', is_null($last) ? null : $last['id']);
@@ -45,6 +45,10 @@ if (isset($record))
 	{
 		$icon = $this->html->image(LOCATION_TYPEIMAGES.$types[$record['activitytype_id']]['image'], array('height'=>20, 'width'=>20));
 		$iconInTitle = $this->html->image(LOCATION_TYPEIMAGES.$types[$record['activitytype_id']]['image'], array('height'=>30, 'width'=>30,'style'=>'padding-top:0px;margin-top:0px'));
+		if ($record['activity_id'] != '')
+ 		{
+ 			$iconInTitle = $this->html->link($iconInTitle,'https://www.strava.com/activities/'.$record['activity_id'], array('escape'=>false, 'target'=>'_blank'));
+ 		}
 	}
 
 	$icon = ($record['activity_id'] != '') ? $this->html->link($icon, 'https://www.strava.com/activities/'.$record['activity_id'], array('escape'=>false, 'target'=>'_blank')) : $icon;
@@ -94,13 +98,14 @@ if (isset($record))
 	</div>
 	<div class="col-3 text-end" >
 		<div class="btn-group"  role="group" aria-label="" >
-			<?=$stravaLink?>			
+		
 			<?=$this->element('recordNav')?>
 		</div>
 	</div>
 </div>
 </form>
 <div class="row">
+
 <?=$this->element('activitiesTableMetrics')?>
 </div>
 <?=$this->element('activitiesTabs');?>
